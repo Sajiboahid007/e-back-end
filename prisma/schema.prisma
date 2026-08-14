@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+
+model User {
+  id             Int            @id @default(autoincrement())
+  name           String         @db.NVarChar(150)
+  email          String         @unique @db.NVarChar(200)
+  phone          String?        @db.NVarChar(50)
+  passwordHash   String         @db.NVarChar(255)
+  role           String         @default("CUSTOMER") @db.NVarChar(50)
+  isActive       Boolean        @default(true)
+  isMarkToDelete Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  addresses      Address[]
+  orders         Order[]
+  carts          Cart[]
+  reviews        Review[]
+  notifications  Notification[]
+}
+
+model Address {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  street         String   @db.NVarChar(255)
+  city           String   @db.NVarChar(100)
+  state          String   @db.NVarChar(100)
+  postalCode     String   @db.NVarChar(30)
+  country        String   @db.NVarChar(100)
+  isDefault      Boolean  @default(false)
+  isMarkToDelete Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Category {
+  id             Int        @id @default(autoincrement())
+  name           String     @db.NVarChar(100)
+  slug           String     @unique @db.NVarChar(120)
+  parentId       Int?
+  parent         Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children       Category[] @relation("CategoryHierarchy")
+  imageUrl       String?    @db.NVarChar(500)
+  isMarkToDelete Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+
+  productsAsCategory Product[] @relation("ProductCategory")
+  productsAsType     Product[] @relation("ProductType")
+  productsAsSkinNeed Product[] @relation("ProductSkinNeed")
+}
+
+model Product {
+  id             Int            @id @default(autoincrement())
+  name           String         @db.NVarChar(200)
+  slug           String         @unique @db.NVarChar(250)
+  description    String         @db.NVarChar(Max)
+  brand          String         @db.NVarChar(100)
+  categoryId     Int
+  typeId         Int?
+  skinNeedId     Int?
+  price          Float
+  discountPrice  Float?
+  stockQuantity  Int            @default(0)
+  sku            String         @unique @db.NVarChar(100)
+  ingredients    String?        @db.NVarChar(Max)
+  howToUse       String?        @db.NVarChar(Max)
+  rating         Float          @default(0.0)
+  reviewCount    Int            @default(0)
+  isActive       Boolean        @default(true)
+  isFeatured     Boolean        @default(false)
+  isMarkToDelete Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  category       Category       @relation("ProductCategory", fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  type           Category?      @relation("ProductType", fields: [typeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  skinNeed       Category?      @relation("ProductSkinNeed", fields: [skinNeedId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  images         ProductImage[]
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+  reviews        Review[]
+}
+
+model ProductImage {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  filePath  String   @db.NVarChar(500)
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+}
+
+model Cart {
+  id             Int        @id @default(autoincrement())
+  userId         Int?
+  user           User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  guestSessionId String?    @db.NVarChar(100)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  items          CartItem[]
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  cartId    Int
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int      @default(1)
+}
+
+model Order {
+  id              Int         @id @default(autoincrement())
+  orderNumber     String      @unique @db.NVarChar(50)
+  userId          Int?
+  user            User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  guestSessionId  String?     @db.NVarChar(100)
+  customerName    String      @db.NVarChar(150)
+  email           String      @db.NVarChar(200)
+  phone           String      @db.NVarChar(50)
+  shippingAddress String      @db.NVarChar(Max)
+  subtotal        Float
+  shippingFee     Float       @default(0.0)
+  discount        Float       @default(0.0)
+  total           Float
+  status          String      @default("PENDING") @db.NVarChar(50)
+  paymentStatus   String      @default("PENDING") @db.NVarChar(50)
+  paymentMethod   String      @default("COD") @db.NVarChar(50)
+  trackingNumber  String?     @db.NVarChar(100)
+  shippingCarrier String?     @db.NVarChar(100)
+  shippedAt       DateTime?
+  deliveredAt     DateTime?
+  isMarkToDelete  Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   Int
+  product     Product  @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  productName String   @db.NVarChar(200)
+  quantity    Int
+  unitPrice   Float
+  subtotal    Float
+}
+
+model Notification {
+  id        Int                 @id @default(autoincrement())
+  userId    Int?
+  user      User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email     String              @db.NVarChar(200)
+  type      String              @db.NVarChar(100)
+  channel   String              @db.NVarChar(50)
+  status    String              @default("PENDING") @db.NVarChar(50)
+  payload   String?             @db.NVarChar(Max)
+  sentAt    DateTime?           @default(now())
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String?  @db.NVarChar(Max)
+  createdAt DateTime @default(now())
+}
+
+model AppSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique @db.NVarChar(100)
+  value     String   @db.NVarChar(Max)
+  updatedAt DateTime @updatedAt
+}
